@@ -31,7 +31,7 @@ wrong it is your responsibility alone.**
 
 Take a backup before you use this script to modify any mailboxes.
 
-### New mails get created and old mails deleted
+### New mails get created and old mails will be deleted
 
 Mails cannot be modified once they are stored, therefore this script creates a new mail
 with the added `Date` header and **deletes** the old message. This sets the mail to "unread"
