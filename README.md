@@ -27,11 +27,11 @@ sudo ./doveadm-adddate -u someuser
 ### No Guarantees
 
 **No warranty, use at you own risk. If you lose mail or something else goes horribly
-wrong it is your responibility alone.**
+wrong it is your responsibility alone.**
 
-Take backups and don't use this script if you don't know what you're doing.
+Take a backup before you use this script to modify any mailboxes.
 
-### Other
+### New mails get created and old mails deleted
 
 Mails cannot be modified once they are stored, therefore this script creates a new mail
 with the added `Date` header and **deletes** the old message. This sets the mail to "unread"
