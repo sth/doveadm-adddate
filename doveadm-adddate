@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+
+import argparse, subprocess, datetime
+
+ap = argparse.ArgumentParser()
+ap.add_argument('-u', dest='user')
+ap.add_argument('--dry-run', '-n', action='store_true',
+        help="Don't modify anything")
+args = ap.parse_args()
+
+# Build mapping from guid to mailbox name.
+# There seems to be no way to save directly to a mailbox-guid...
+boxnames = {}
+proc = subprocess.run(
+        ['doveadm', 'mailbox', 'status', '-u', args.user, 'guid', '*'],
+        capture_output=True, check=True
+    )
+for line in proc.stdout.split(b'\n'):
+    if not line.strip():
+        continue
+    name, guid = line.rstrip().rsplit(b' ', 1)
+    assert guid.startswith(b'guid=')
+    boxnames[guid[5:]] = name
+
+
+# Find messages without Date header
+proc = subprocess.run(
+        ['doveadm', 'search', '-u', args.user, 'not', 'header', 'Date', ''],
+        capture_output=True, check=True
+    )
+for line in proc.stdout.split(b'\n'):
+    if not line.strip():
+        continue
+    guid, uid = line.rstrip().split(b' ')
+    print((b'%s (%s) %s' % (guid, boxnames[guid], uid)).decode(errors='replace'))
+
+    # Fetch message info
+    proc = subprocess.run(
+            ['doveadm', 'fetch', '-u', args.user, 'date.received text', 'mailbox-guid', guid, 'uid', uid],
+            capture_output=True, check=True
+        )
+
+    # parse
+    received, text_header, text = proc.stdout.split(b'\n', 2)
+    assert text_header == b'text:'
+    received = datetime.datetime.strptime(
+            received.split(b':', 1)[1].strip().decode(),
+            '%Y-%m-%d %H:%M:%S'
+        )
+    print("  -> %s" % received)
+
+    # Modify message text
+    text = (
+        b'Date: ' + received.ctime().encode() + b'\n' + 
+        b'X-Date-Added: Date header was missing in original message\n' +
+        text
+    )
+
+    # Save new modified message, remove old message
+    if not args.dry_run:
+        subprocess.run(['doveadm', 'save', '-u', args.user, '-m', boxnames[guid]], input=text, check=True)
+        subprocess.run(['doveadm', 'expunge', '-u', args.user, 'mailbox-guid', guid, 'uid', uid], check=True)
